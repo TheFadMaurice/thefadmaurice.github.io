@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Route of Bremgarten</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+        .game-container {
+            background-color: #ffffff;
+            border-radius: 1rem; /* More rounded corners */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Stronger shadow */
+            padding: 2rem;
+            width: 100%;
+            max-width: 700px; /* Max width for readability */
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            border: 1px solid #e2e8f0; /* Subtle border */
+        }
+        .game-output {
+            background-color: #f8fafc; /* Lighter background for output */
+            border: 1px solid #cbd5e1; /* Soft border */
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            min-height: 250px; /* Minimum height for output area */
+            max-height: 500px; /* Max height before scrolling */
+            overflow-y: auto; /* Scroll for long content */
+            white-space: pre-wrap; /* Preserve whitespace and wrap text */
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #334155; /* Darker text for readability */
+        }
+        .game-output p {
+            margin-bottom: 0.5rem;
+        }
+        .game-output p:last-child {
+            margin-bottom: 0;
+        }
+        .user-input-text {
+            color: #2563eb; /* Blue for user input */
+            font-weight: 600;
+        }
+        .game-input-area {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+        .game-input-area input {
+            flex-grow: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #94a3b8; /* Medium gray border */
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            color: #1e293b;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .game-input-area input:focus {
+            border-color: #3b82f6; /* Blue focus ring */
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+        }
+        .game-button {
+            background-color: #4f46e5; /* Primary button color */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: none;
+        }
+        .game-button:hover {
+            background-color: #4338ca; /* Darker on hover */
+            transform: translateY(-1px);
+        }
+        .game-button:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+        .restart-button {
+            background-color: #ef4444; /* Red for restart */
+        }
+        .restart-button:hover {
+            background-color: #dc2626;
+        }
+        h1 {
+            font-size: 2.25rem; /* Larger title */
+            font-weight: 800;
+            color: #1a202c; /* Very dark gray */
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>The Route of Bremgarten</h1>
+        <div id="game-output" class="game-output"></div>
+        <div class="game-input-area">
+            <input type="text" id="game-input" placeholder="Type your answer here...">
+            <button id="submit-button" class="game-button">Submit</button>
+        </div>
+        <button id="restart-button" class="game-button restart-button hidden">Restart Game</button>
+    </div>
+
+    <script>
+        // Global game state variables
+        let playerName = "";
+        let currentScene = null;
+        let gameOutputElement;
+        let gameInputElement;
+        let submitButton;
+        let restartButton;
+
+        /**
+         * Initializes the game by setting up DOM references and event listeners.
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            gameOutputElement = document.getElementById('game-output');
+            gameInputElement = document.getElementById('game-input');
+            submitButton = document.getElementById('submit-button');
+            restartButton = document.getElementById('restart-button');
+
+            submitButton.addEventListener('click', handleInput);
+            gameInputElement.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleInput();
+                }
+            });
+            restartButton.addEventListener('click', resetGame);
+
+            startGame(); // Start the game when the page loads
+        });
+
+        /**
+         * Displays a message in the game output area.
+         * @param {string} message - The message to display.
+         * @param {boolean} isInput - True if the message is user input, for styling.
+         */
+        function displayMessage(message, isInput = false) {
+            const p = document.createElement('p');
+            p.textContent = message;
+            if (isInput) {
+                p.classList.add('user-input-text');
+            }
+            gameOutputElement.appendChild(p);
+            // Scroll to the bottom to show the latest message
+            gameOutputElement.scrollTop = gameOutputElement.scrollHeight;
+        }
+
+        /**
+         * Clears the input field.
+         */
+        function clearInput() {
+            gameInputElement.value = '';
+        }
+
+        /**
+         * Handles user input from the text field.
+         */
+        function handleInput() {
+            const answer = gameInputElement.value.trim();
+            if (answer === "") {
+                displayMessage("Please enter an answer.");
+                return;
+            }
+            displayMessage(`> ${answer}`, true); // Display user's input
+            clearInput();
+
+            if (currentScene) {
+                currentScene(answer); // Pass the answer to the current scene function
+            }
+        }
+
+        /**
+         * Sets the input area to be active or inactive.
+         * @param {boolean} active - True to enable input, false to disable.
+         */
+        function setInputActive(active) {
+            gameInputElement.disabled = !active;
+            submitButton.disabled = !active;
+            if (active) {
+                gameInputElement.focus();
+            }
+        }
+
+        /**
+         * Resets the game to its initial state.
+         */
+        function resetGame() {
+            gameOutputElement.innerHTML = ''; // Clear all previous messages
+            playerName = "";
+            currentScene = null;
+            restartButton.classList.add('hidden');
+            setInputActive(true);
+            startGame();
+        }
+
+        /**
+         * The main function to start the game.
+         */
+        function startGame() {
+            displayMessage("Welcome to The Route of Bremgarten!");
+            displayMessage("Please enter your name:");
+            currentScene = getName; // Set the first scene to get the player's name
+        }
+
+        // --- Game Scenes (Translated from Python Logic) ---
+
+        /**
+         * Scene: Get Player Name
+         * @param {string} answer - User's input for their name.
+         */
+        function getName(answer) {
+            playerName = answer;
+            displayMessage(`Welcome, ${playerName}, you seem lost. Why don't you find your way back home.`);
+            displayMessage("I have a few maps to get you there, which one do you want? *There is a rusty, piratey looking map (1), an iPhone with solely an offline Google Maps on it (2), and a map that looks like it's from another planet (3). Choose one.*");
+            currentScene = chooseMap;
+        }
+
+        /**
+         * Scene: Choose Map
+         * @param {string} answer - User's choice of map.
+         */
+        function chooseMap(answer) {
+            switch (answer) {
+                case "1":
+                    displayMessage(">>> You took the rusty, piratey looking map. After a closer look, you realize it's a map of Bern that just has a lot of tea stains on it.");
+                    displayMessage(">>> There is also an X in the Bremgarten forrest. Do you ignore it (1) or take a detour through the Bremgarten forrest (2)?");
+                    currentScene = pirateMapChoice;
+                    break;
+                case "2":
+                    displayMessage(">>> You chose the worst option. Do you try to find wifi (1), or do you follow the map exactly (2)?");
+                    currentScene = iphoneMapChoice;
+                    break;
+                case "3":
+                    displayMessage(">>> You take the other-worldly looking map. As soon as you have it in your hands, the map on the material fades and you see three colored dots. A pink one (1), a blood red one (2), and a turquoise one (3). Letters appear saying 'touch one of the dots'.");
+                    currentScene = alienMapChoice;
+                    break;
+                default:
+                    displayMessage(">>> Please choose either 1, 2 or 3!");
+                    break;
+            }
+        }
+
+        // --- Pirate Map Branch ---
+        function pirateMapChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You decide to just head on home, the cats are probably starving. You hop on the 21 bus, but the bus stops at Rossfeld, because the bus driver is tired and had a long day. You could either take over and drive the bus yourself (1), or you can walk through the Ängehaubinsu to get home (2)...");
+                currentScene = rossfeldChoice;
+            } else if (answer === "2") {
+                displayMessage(">>> When you arrive at the Bremgartenwald you look at the map again. Wow, thank god you had to do so many OLs in school instead of learning how to do taxes! You easily find your way to where the X on the map is.");
+                displayMessage(">>> The X is marked on a little island in the middle of a pond. You manage your way over but have wet socks by the end of it. Hopefully the X marks a hidden treasure with dry socks. How will you dig it up? Will you use your hands (1), your teeth (2), or the shovel stuck in the ground next to you (3)?");
+                currentScene = digChoice;
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function rossfeldChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You forgot that you actually watched YouTube videos on how to be a busdriver, so the ride goes surprisingly well. You drive until Bremgarten Schloss.");
+                displayMessage(">>> As a thank you for giving him a break, the bus driver offers you a piece of lemon poppyseed cake (1), and a piece of chocolate fudge cake (2). He wants the one you don't want though.");
+                currentScene = cakeChoice;
+            } else if (answer === "2") {
+                displayMessage(">>> You decide to walk the rest of the way. You get quite far, but the Ferry is closed. You have to spend the night eating ice cream from the Zehendermätteli and sleep in the sandbox. You wake up at 7.30, well rested but with kids staring at you because you are still in the sandbox.");
+                displayMessage(">>> You get up, wipe the sand off of your clothes that fit and walk to the Restaurant. The Ferry hasn't opened yet. You could either get breakfast (1) or you could attempt to just swim across the river (2)? It's about 19 degrees.");
+                currentScene = ferryClosedChoice;
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function cakeChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> Yummmm. The lemon poppy seed cake is amazing. You ate it all before arriving home. But you made it!");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage(">>> Yummmm. The chocolate fudge cake is amazing. However, before you make it to the recycling, you need to sit down - you're falling into a food coma.");
+                displayMessage(">>> Do you take a nap on the sidewalk (1) or do you roll home like a wheel of cheese (2)?");
+                currentScene = foodComaChoice;
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function foodComaChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You decide to take a power nap to gather energy for the leftover 120 meters. You wake up at home, in front of the catfood dishes. The cats have been starving and took it upon themselves to teach you where your priorities lie. You give them food and now everyone is happy!");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage(">>> You start rolling home but slowly morph into a wheel of cheese because you weren't actively fighting it. You should've known this would happen. Rolls in the family. The cats eat some of you, but it's actually totally fine and everyone is happy.");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function ferryClosedChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> Breakfast. Good idea. Your options are: Crusty bread with cheese, hardboiled eggs and velami or black current jam for a sweet option (1), a plate of Mochi donuts (2) or a bowl of fruit you can refill (strawberries, grapes, kiwis, mango, all cut up and ready to eat) (3).");
+                currentScene = breakfastChoice;
+            } else if (answer === "2") {
+                displayMessage(">>> It was a good idea to swim across, as after you successfully managed to cross the river, it starts to rain heavily.");
+                displayMessage(">>> After this whole trip, you realize you forgot the Guinness, take the 21 bus to the Bierlädeli, take the 21 bus back home and sit to watch a whole new season of Task Master starring Obama, Meryl Streep, Niall Horan, David Tennant and Uncle René. What an adventure.");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function breakfastChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You search for a place to sit and eat your fresh crusty bread with all your desired toppings. You spot Willem Dafoe (1) and Meryl Streep (2) sitting at two opposite tables. Who do you decide to join?");
+                currentScene = celebrityChoice;
+            } else if (answer === "2") {
+                displayMessage(">>> Three whole Mochi donuts! You eat two of them on your way back to the table and then Eat the third one while you are in the process of sitting down. You sit still for three hours to digest the food. The ferry has since started running, so you head on over.");
+                displayMessage(">>> You share a ride with the whole of One Direction and invite them to lunch. They accept. You arrive home with One Direction and play Exit games with them. What a successful trip home.");
+                endGame();
+            } else if (answer === "3") {
+                displayMessage(">>> You are given a container to fill with fruit along with honey and chocolate sauce. You sit down, and it starts to rain. This means the Ferry will probably not go anymore - the Aare will be too high, you'll have to swim anyway!");
+                displayMessage(">>> You refill your container of fruit to bring back home (it's allowed), and start stretching for your swim. You could either try and just swim really fast (1) OR you could try and be as flat as a rock and ask someone to throw you, in hopes you might skip across the river (2)...");
+                currentScene = swimChoice;
+            } else {
+                displayMessage(">>> Please choose either 1, 2 or 3!");
+            }
+        }
+
+        function celebrityChoice(answer) {
+            if (answer === "1") {
+                displayMessage("You join Willem Dafoe. He tells you about his latest art project involving sentient cheese wheels. You have a fascinating conversation and eventually head home, feeling inspired.");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage("You join Meryl Streep. She shares stories from her illustrious career and offers you acting tips. You arrive home feeling like a true star.");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function swimChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You are a machine!!!! You swim across the river and make it to the other side with the Aare kitty waiting under a tree for you. You give it a piece of mango and head on home. You have the day off and decide to sit inside making 3D printed tea cups and clothes that fit.");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage(">>> You ask someone to throw you, they accept and throw you, you skip four times and arrive with only one side of you wet. You decide to patent the idea and make a living off of telling people how you did it. Your secret was having clothes that fit. Aerodynamic. You go home, fill the pool and keep practicing.");
+                displayMessage(">>> After twenty years you decide to tell the whole world the secret and water skipping becomes an olympic sport. You will never be forgotten.");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function digChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You use your hands and start diggin up the dirt. Since its near a pond, the dirt is quite moist so you manage quite easily. After digging 4 meters deep, you find a chest. Inside the chest is a whole ladder and some PG tips teabags. You will need both. You just dug yourself 4 meters deep in non stable soil.");
+                displayMessage(">>> Do you use the ladder to get out immediately (1) or make tea with the thermos of hot water and milk you brought with first(2)");
+                currentScene = digOutChoice;
+            } else if (answer === "2") {
+                displayMessage(">>> You chose to bite the dirt and spit it out, slowly advancing and also disgustingly. You are just about to take another bite out of the dirt, when a mole pokes his nose out. The X on the map marked his home. He loves visitors. He offers you a yacht (1) or pedalos (2). You may choose your gift.");
+                currentScene = moleGiftChoice;
+            } else if (answer === "3") {
+                displayMessage(">>> You pick up the shovel. Or at least you try. In your hands it starts to wiggle and you realize it's actually a shovake, the common snake found in the Bremgartenwald that hides from its pray and predators my looking like a shovel. He challenges you to a dance battle. If you win, you get to use him as a shovel to dig. If you lose, he gets to tell you about his horrible day at work. Press (1) to accept, (2) not to.");
+                currentScene = shovakeDanceBattle;
+            } else {
+                displayMessage(">>> Please choose either 1, 2 or 3!");
+            }
+        }
+
+        function digOutChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You get out and make your way home with a new ladder and PG tips. Absolutely worth it.");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage(">>> You make your tea and drink it in your hole. As soon as the soil starts caving in on you, you jump 4 meters up and out of the ditch. The PG tips must have given you great power. You test how far you can go. You jump over the pond, so your socks don't get even wetter. Then you take a deep breath and jump home. Woah.");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function moleGiftChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> He hands you the keys to the yacht, followed by the yacht. It's quite heavy. You start digging a way for the pond water to go to the Aare so you can ride your yacht home. You used your teeth again as it seems to bring good things to life. You successfully ride your yacht home.");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage(">>> You choose the pedalo. You ride the pedalo home, it takes you seventeen hours but at least it was kind of fun.");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function shovakeDanceBattle(answer) {
+            if (answer === "1") {
+                const outcome = Math.floor(Math.random() * 3) + 1; // 1, 2, or 3
+                if (outcome === 1) {
+                    displayMessage(">>> You win! He lets you use him as a shovel.");
+                    displayMessage(">>> You dig to find a wad of Globus Gutscheins and a collection of every single gadget from a movie you could think of. You use the first gadget and it immediately wipes your memory. You use the first gadget and it immediately wipes your memory. You use the first gadget and it immediately wipes your memory...");
+                    endGame();
+                } else if (outcome === 2) {
+                    displayMessage(">>> You lose! He tells you about his work day. Karen has been telling him off for doing overtime at work. Shane the Shovake has needed to finish a project. He hoped he would get promoted, but instead he gets punished. Really unfair. You feel bad and take him home for dinner. You make him a nice tomato soup sandwich with artificial mouse flavoring. He feels better.");
+                    endGame();
+                } else { // Outcome 3, not explicitly handled in Python, but for robustness
+                    displayMessage(">>> The dance battle was a draw! You both decide to call it a day and head home.");
+                    endGame();
+                }
+            } else if (answer === "2") {
+                displayMessage(">>> You don't want to dance battle. You want to dance party. You both have a dance party. Willem Dafoe jumps out of the frog pond and dances too. After an exhausting dance party you make a group chat called, agree to do this more often and head home.");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        // --- iPhone Map Branch ---
+        function iphoneMapChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You find wifi easily, because you are at Bern Hauptbahnhof. Not sure how you got lost here in the first place. There are two wifis available, named: Cheese/Crocheting/Tea-cub (1) and Tardis (2). They need no password. Pick one.");
+                currentScene = wifiChoice;
+            } else if (answer === "2") {
+                displayMessage(">>> You follow the map exactly. Half way through, you realized you didn't have to walk, there is a 21 bus that reaches home. So, you walk back to the Bahnhof. Then you realized, you could've walked the rest or taken the bus from there.");
+                displayMessage(">>> As to not waste the effort, you decide to by 16 jars of black current jam. Do you walk home again (1) or take the bus this time (2)?");
+                currentScene = jamChoice;
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function wifiChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> As soon as you enter the wifi, you are invited to a club. Your phone reads 'SND 500000 EurOS 2 TWINT & bcome CLUB FRIEND IMMEDIATELY!!!'. Do you send the money? Choose (1) for yes, (2) for no.");
+                currentScene = sendMoneyChoice;
+            } else if (answer === "2") {
+                displayMessage(">>> You enter the TARDIS wifi. Immediately, all of the sounds you thought were traffic are translated into English. You find out that traffic sounds are actually the sounds of cars speaking. The cars are whispering 'Don't follow the map...', 'Google is evil!' and 'Vroom vroom...");
+                displayMessage(">>> Do you listen to the cars and try to find your way without technology (1), or do you ignore the cars whispers and try to channel your technological spirit (2)?");
+                currentScene = tardisWifiChoice;
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function sendMoneyChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> This was totally legit. In a blink of an eye you have been transported back home and find yourself in the Cheese/Crocheting/Tea-Club. You have been the founder all along.");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage(">>> The wifi is weak, you try to look where the signal is from. It's from the Kantonspolizei. 'Kantonspolizei' and 'DetainedFi' were already taken. The police give you clothes that fit and a ride home.");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function tardisWifiChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You decide to make your way without technology. This will be a long way home. You decide to buy clothes that fit before heading on your hike home, and buy some Panna Cotta, in case it comes in handy.");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage(">>> You close your eyes and channel your inner tech spirit. Once you open them, Spock is standing in front of you. It is impressive you have managed to call him.");
+                displayMessage(">>> This means that you have enough tech in your soul to teleport yourself Startrek style but without the ship (1). You could ask Spock for a spacetrip though (2)?");
+                currentScene = spockChoice;
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function spockChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> As you are beaming away, the last thing you hear is Spock applauding but it sounds awkward, he probably doesn't know how to clap while his hands are stuck in a Vulcan salute. Unfortunately, you have not had practice in teleporting so you end up in an old goat house on a remote greek island.");
+                displayMessage(">>> Actually, could be worse. Do you hang out at the beach bar (1) or stay in the old goat house (2) until you come up with a plan on how to get back home?");
+                currentScene = greekIslandChoice;
+            } else if (answer === "2") {
+                displayMessage(">>> You ask Spock for a ride in the USS Enterprise and he accepts, still impressed with your skill. As you are teleported onto the ship and are being shown around by Spock, you learn that 'USS' stands for 'Unlimited Sprinz Submarine'.");
+                displayMessage(">>> You are convinced and spend the rest of time in the ship, exploring planets, playing pool in the party room with Spock and teleporting back home to hang out with the cats and sit in the garden.");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function greekIslandChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You go to the beach bar where there are men in diapers dancing around and other men in scuba suits dancing on the dock. How fun. You decide to stay here forever.");
+                displayMessage(">>> You practice teleporting and manage to teleport your house with everything inside, the cats and the entire Migros including employees and stock onto the island.");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage(">>> You stay in the old goat house when suddenly three grown men are sent up too. One of them looks like a hippie, the other one like a man from some victorian era and the third like a super annoying man.");
+                displayMessage(">>> The hippie refuses to help anyone as this is an adventure. You spend a few weeks attending a wedding and being angry at a guy named Sky, and then you finally hop on a ship and ride from the ocean to the Aare until you're back at the Bremgarten loop.");
+                displayMessage(">>> As you're walking back home, you wonder where you can buy a pretty blue swimsuit like that girl that was getting married.");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function jamChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You walked so much today, you've had to eat 9 jars of black current jam in order to energize. You then realize Google maps sent you through a detour in Adelboden because the sidewalk was wet, which is why you needed so much jam.");
+                displayMessage(">>> However, you make it home and watch Poirrot until you fall asleep (which does not take long, as you have a food coma).");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage(">>> You take the bus home. When you arrive home, you see David Attenborough in the garden, harvesting black currents worth roughly 16 jars of jam. You organize a black current event and invite yourself and David Attenborough. What an amazing day.");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        // --- Alien Map Branch ---
+        function alienMapChoice(answer) {
+            switch (answer) {
+                case "1":
+                    displayMessage(">>> You touch the pink dot. A cat appears. You touch it again. Another cat appears. You stop, only because you are not sure if these cats are from another planet, peoples pets, strays, or what. You now proceed with two cats.");
+                    displayMessage(">>> As you wait for the 21 bus, they stare at you. It slowly arrives, and they start meowing. It seems they are trying to tell you not to get on the bus.");
+                    displayMessage(">>> They also want to know if you are Dad. Are you Dad? Choose (1) for yes, (2) for no.");
+                    currentScene = areYouDadChoice;
+                    break;
+                case "2":
+                    displayMessage(">>> You touch the blood red dot. A dragon appears, signalling to you to get on its back. Do you get on? Choose (1) for yes and (2) for no.");
+                    currentScene = dragonChoice;
+                    break;
+                case "3":
+                    displayMessage(">>> You touch the turquoise dot and your whole body becomes turquoise. You sit down on the bench to wait for the 21 bus because nothing else happened that could help you get home any other way. How did you get lost in Bern anyway? Why did you even need a map?");
+                    displayMessage(">>> As soon as you sit on the bench, the bench turns turquoise. Kind of cool. Do you touch everything in sight that has an ugly color to turn it turquoise (1), or do you summon The Doctor to help you reverse this (2)?");
+                    currentScene = turquoiseChoice;
+                    break;
+                default:
+                    displayMessage(">>> Please choose either 1, 2 or 3!");
+                    break;
+            }
+        }
+
+        function areYouDadChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You are Dad. Do you call Didier Couche to pick you up with skiis (1), or do you spread wings and fly home (2)?");
+                currentScene = dadTransportChoice;
+            } else if (answer === "2") {
+                displayMessage(">>> You are not Dad. Do you call Dad to come pick you up by car (1) or do you spread wings and fly home (2)?");
+                currentScene = notDadTransportChoice;
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function dadTransportChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> Didier Couche picks you up with skiis and a sled. You sit on the sled and he pulls you home. Very impressive. There isn't even snow on the ground. How did you know your address? Either way, you both arrive home.");
+                displayMessage(">>> As a thank you to Didier Couche, you make him a Fondue and sit out in the garden to eat it. He tells you tales about being a skiier and how he got into ski-sledding.");
+                displayMessage(">>> He is so impressed with your fondue making skills that he is now your ski-sledder for life, for free.");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage(">>> You spread wings and fly home, but unfortunately are out of practice. After a few meters, you get kind of tired. You fly back to the ground and ask the cats for advice.");
+                displayMessage(">>> Do you ask the one whose name tag says 'LYER' (1) or the one whose name tag is 'Don't listen to him, he never lies.'(2)?");
+                currentScene = catAdviceChoice;
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function notDadTransportChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> Dad comes to pick you up, with Didier Couche in the passenger seat. Now that you're in the car, do you want to go some place else first (1) or go home (2)?");
+                currentScene = dadCarDestinationChoice;
+            } else if (answer === "2") {
+                displayMessage(">>> You spread wings and fly home, but unfortunately are out of practice. After a few meters, you get kind of tired. You fly back to the ground and ask the cats for advice. Do you ask the one whose name tag says 'LYER' (1) or the one whose name tag is 'Don't listen to him, he never lies.'(2)?");
+                currentScene = catAdviceChoice;
+            } else {
+                displayMessage(">>> Please choose either 1 or 2! How are you not Dad and also not not Dad?????");
+            }
+        }
+
+        function catAdviceChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You ask the cat whose nametag says 'LYER'. He meows. You realize the cats must come from an owner with a really weird taste in names. You decide to just walk home since you've already made it 10 meters far, there is really no point in walking back to the bus station and calling anyone.");
+                displayMessage(">>> It's a long walk home, you press the pink dot a few more times to get more cat friends. When you arrive home, the pink dot turns green. When you press it, all the cats disappear and the weird alien map says 'thank you for looking after these cats, they are home safe now again'. You keep the map, it might come in handy.");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage(">>> You ask the cat whose nametag says 'Don't listen to him, he never lies'. He tells you his name is not pronounced 'Don't listen to him, he never lies', but it is actually yiddish and pronounced 'Henry'.");
+                displayMessage(">>> He refuses to help you because you have mispronounced his name. Do you just take the bus anyway, since he obviously can speak, so taking the bus must not be that bad if he didn't actually warn you (1), or do you ask the other one (2)?");
+                currentScene = henryRefusalChoice;
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function henryRefusalChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You take the bus home. Nothing weird happens. You arrive home. The rest of the family is waiting to watch the new Doctor Who starring Andrew Scott, with dinner and dessert (mint ice cream) ready waiting for you.");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage(">>> You now ask the cat whose nametag says 'LYER'. He meows. You realize the cats must come from an owner with a really weird taste in names. You decide to just walk home since you've already made it 10 meters far, there is really no point in walking back to the bus station and calling anyone.");
+                displayMessage(">>> It's a long walk home, you press the pink dot a few more times to get more cat friends. When you arrive home, the pink dot turns green. When you press it, all the cats disappear and the weird alien map says 'thank you for looking after these cats, they are home safe now again'. You keep the map, it might come in handy.");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function dadCarDestinationChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> Where do you want to go? On a hike (1)? To a Simon and Garfunkel concert (2)? To the Papillorama (3)?");
+                currentScene = dadCarActivityChoice;
+            } else if (answer === "2") {
+                displayMessage(">>> You drive home. You have managed to add two cats to the collection!");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function dadCarActivityChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You, Dad and Didier Couche drive to the Jura and hike the Creux du Vain. It was a hard, but fun hike. Didier Couche offers to put you on a sled and ski-sled you home, all the way to Bremgarten.");
+                displayMessage(">>> In about eighteen minutes your back at home. The hike was long, it's already dark and you decide to sleep. Your pillow is cold, your sheets clean and you doze off immediately.");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage(">>> You go to a Simon and Garfunkel concert at the Bierhübeli. Impressive how long they have been alive. Didier Couche gets up and plays the bass for them. Wow, who knew he was a bassist as well as a skiier! This man does everything!");
+                displayMessage(">>> After the concert, you, Didier Couche, Dad, Simon and Garfunkel go home to have a little garden party. Guinness is served, cake, mochi ice cream, strawberries, crusty bread with black current jam and pizza. What a fun night.");
+                endGame();
+            } else if (answer === "3") {
+                displayMessage(">>> You drive to the Papillorama. The cats start attacking the butterflies - maybe you should head home actually. Do you head home (1), or do you break all the glasses first so every animal is free and can escape (2)?");
+                currentScene = papilloramaChoice;
+            } else {
+                displayMessage(">>> Please choose either 1, 2 or 3!");
+            }
+        }
+
+        function papilloramaChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You take the cats and head on home, after buying a Lemur stuffed animal at the gift shop. When you get home you ponder. You come to the conclusion that the moral of the story is - always opt for the adventure option, you just might find a stuffed animal lemur on your way which is pretty cool.");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage(">>> You take out your swiss army knife with a built in 4 lb hammer and smash the first window, setting all the butterflies free. Security is like 'what the hell' and stops you.");
+                displayMessage(">>> You get a free ride from the police. After telling the police 'okay but the butterflies wanted to be free', they understand and give you a ride back home instead. Yay!");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function dragonChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> Awesome. You jump on its back. The dragon is impressed that you jumped six meters into the air onto its back and starts to sing Waterloo by ABBA for you as it flies off, and only pauses the song to ask you for your address. Do you give it your home address (1) or the address of a cool castle in Ireland (2)?");
+                currentScene = dragonDestinationChoice;
+            } else if (answer === "2") {
+                displayMessage(">>> WHY NOT?! You have chosen the only option in the game where you immediately lose.");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2! (But don't choose 2).");
+            }
+        }
+
+        function dragonDestinationChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You give it your home address. The dragon flies you home and you keep the dragon. You will need a bigger catflap.");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage(">>> The dragon flies you to Ireland, and drops you off in a castle that has once been abandoned, but now belongs to you. You call a moving company to move all of Bremgarten to be the neighboring village to your castle. With time, a new language emerges out of Irish Gaelic and Bärndütsch. Everything is super cool now.");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        function turquoiseChoice(answer) {
+            if (answer === "1") {
+                displayMessage(">>> You start touching the ground, a lot of peoples clothing, and cars with boring colors. Bern was beautiful before now its awesome. You spend weeks at Bern Hauptbahnhof, mastering your new power, until you can control what changes color and what stays the same, before you hop on the 21 bus and go home. Awesome");
+                endGame();
+            } else if (answer === "2") {
+                displayMessage(">>> You didn't even have to summon The Doctor - he came on his own, mistaking you for his TARDIS because the color is a little bit similar. He uses his sonic screwdriver and turny things almost back to normal. Everything you touch just becomes lovely now, not turquoise.");
+                displayMessage(">>> You thank him and hop on the 21 bus to go home. As soon as you do, the bus seats become more comfy than ever. When you press the button to make sure the bus stops at Bremgarten Schloss, the button becomes a small sunflower (with the same technology as the button).");
+                displayMessage(">>> When you open the door to home, nothing happens, because home is already as lovely as can be. The only thing you notice is that there is no longer any moldy wet looking spot on the living room ceiling.");
+                endGame();
+            } else {
+                displayMessage(">>> Please choose either 1 or 2!");
+            }
+        }
+
+        /**
+         * Ends the current game session and displays a thank you message.
+         */
+        function endGame() {
+            displayMessage(`Thank you for playing, ${playerName}.`);
+            setInputActive(false); // Disable input
+            restartButton.classList.remove('hidden'); // Show restart button
+            currentScene = null; // No active scene
+        }
+    </script>
+</body>
+</html>
