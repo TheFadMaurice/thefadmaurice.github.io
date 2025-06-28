@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Tetris</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+            font-family: 'Inter', sans-serif; /* Using Inter font */
+            flex-direction: column;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        #game-container {
+            display: flex;
+            gap: 20px;
+            border-radius: 10px; /* Rounded corners */
+            overflow: hidden; /* Ensures child elements respect rounded corners */
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            background-color: #fff;
+            padding: 20px;
+        }
+
+        #game-board {
+            border: 2px solid #333;
+            background-color: #000;
+            display: grid;
+            grid-template-columns: repeat(10, 20px);
+            grid-template-rows: repeat(20, 20px);
+            width: 200px; /* 10 columns * 20px */
+            height: 400px; /* 20 rows * 20px */
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.7);
+            border-radius: 8px; /* Rounded corners for the board */
+        }
+
+        .grid-cell {
+            width: 20px;
+            height: 20px;
+            box-sizing: border-box;
+            border: 1px solid #1a1a1a;
+            display: flex; /* For centering emoji */
+            justify-content: center; /* For centering emoji */
+            align-items: center; /* For centering emoji */
+            font-size: 16px; /* Size of the emoji */
+        }
+
+        /* Base style for filled cells (background, border, rounded corners) */
+        .filled {
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            border-radius: 2px; /* Slight rounded corners for individual blocks */
+        }
+
+        /* Specific piece background colors (still useful for general block appearance) */
+        .color-I { background-color: #00FFFF; } /* Cyan */
+        .color-J { background-color: #0000FF; } /* Blue */
+        .color-L { background-color: #FFA500; } /* Orange */
+        .color-O { background-color: #FFFF00; } /* Yellow */
+        .color-S { background-color: #008000; } /* Green */
+        .color-T { background-color: #800080; } /* Purple */
+        .color-Z { background-color: #FF0000; } /* Red */
+
+
+        #sidebar {
+            width: 150px; /* Adjusted width to accommodate controls */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            gap: 15px;
+            padding-top: 20px;
+        }
+
+        #score-display, #next-piece-display, #game-over-display {
+            background-color: #f8f8f8;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            font-weight: bold;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        #next-piece-display {
+            height: 100px; /* Adjust as needed for next piece preview */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #e0e0e0;
+            border: 1px dashed #999;
+            padding: 5px;
+            font-size: 1em;
+        }
+
+        #next-piece-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 15px); /* Max 4x4 for pieces */
+            grid-template-rows: repeat(4, 15px);
+            gap: 1px;
+            margin-top: 5px;
+        }
+
+        #next-piece-display .grid-cell {
+            width: 15px;
+            height: 15px;
+            border: 0.5px solid #ccc;
+            background-color: transparent;
+            border-radius: 1px;
+            font-size: 12px; /* Smaller emoji for preview */
+        }
+
+        #next-piece-display .filled {
+            border: 0.5px solid rgba(0, 0, 0, 0.2);
+        }
+
+        #controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+            width: 100%; /* Take full width of sidebar */
+            max-width: none; /* Override previous max-width */
+            padding: 15px; /* Adjust padding for better fit */
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box; /* Include padding in width */
+        }
+
+        .control-button {
+            padding: 12px 25px;
+            font-size: 18px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(145deg, #4CAF50, #45a049);
+            color: white;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .control-button:hover {
+            background: linear-gradient(145deg, #45a049, #3e8e41);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        #game-over-display {
+            background-color: #ff4d4d;
+            color: white;
+            font-size: 24px;
+            padding: 20px;
+            display: none; /* Hidden by default */
+            border-radius: 8px;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .key-instruction {
+            font-size: 0.75em; /* Adjusted font size for smaller text */
+            color: #555;
+            text-align: center;
+            line-height: 1.4;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            #game-container {
+                flex-direction: column;
+                align-items: center;
+                padding: 15px;
+            }
+            #sidebar {
+                width: 200px; /* Adjust sidebar width for smaller screens */
+                flex-direction: row; /* Keep as row for small screens to fit side-by-side */
+                justify-content: center;
+                flex-wrap: wrap;
+                gap: 10px;
+                padding-top: 0; /* Remove top padding when row layout */
+            }
+            #score-display, #next-piece-display, #game-over-display, #controls {
+                width: calc(50% - 10px); /* Two items per row for score/next/gameover/controls */
+                box-sizing: border-box;
+            }
+            #next-piece-display {
+                height: auto;
+            }
+            #controls {
+                padding: 15px;
+                order: 4; /* Ensure controls appear last in the row on small screens */
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Catris: The Purr-fect Tetris Game</h1>
+    <div id="game-container">
+        <div id="game-board"></div>
+        <div id="sidebar">
+            <div id="score-display">Score: 0</div>
+            <div id="next-piece-display">
+                Next:
+                <div id="next-piece-preview-grid"></div>
+            </div>
+            <div id="game-over-display">Game Over!</div>
+            <!-- Moved controls inside sidebar -->
+            <div id="controls">
+                <button id="startButton" class="control-button">Start Game</button>
+
+                <p class="key-instruction">Up Arrow: Rotate <BR>Down Arrow: Soft Drop<BR>Spacebar: Hard Drop</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const COLS = 10;
+        const ROWS = 20;
+        const CELL_SIZE = 20; // in pixels
+        const EMPTY_CELL_VALUE = ''; // Use an empty string to represent an empty cell
+
+        // DOM elements
+        const gameBoardElement = document.getElementById('game-board');
+        const scoreDisplay = document.getElementById('score-display');
+        const nextPieceDisplay = document.getElementById('next-piece-preview-grid');
+        const gameOverDisplay = document.getElementById('game-over-display');
+        const startButton = document.getElementById('startButton');
+
+        // Game state variables
+        let board = Array.from({ length: ROWS }, () => Array(COLS).fill(EMPTY_CELL_VALUE));
+        let currentPiece = null;
+        let nextPiece = null;
+        let score = 0;
+        let gameOver = false;
+        let gameInterval = null;
+        let dropInterval = 1000; // Initial drop speed in milliseconds (1 second)
+        let level = 1; // Start at level 1
+
+        // Tetrominoes definitions with cat emojis
+        const TETROMINOES = [
+            {
+                shape: [
+                    [[0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]], // I
+                    [[0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0]]
+                ],
+                color: 'color-I',
+                emoji: '🐱' // Cat emoji for I-piece
+            },
+            {
+                shape: [
+                    [[1, 0, 0], [1, 1, 1], [0, 0, 0]], // J
+                    [[0, 1, 1], [0, 1, 0], [0, 1, 0]],
+                    [[0, 0, 0], [1, 1, 1], [0, 0, 1]],
+                    [[0, 1, 0], [0, 1, 0], [1, 1, 0]]
+                ],
+                color: 'color-J',
+                emoji: '🐈‍⬛' // Black Cat emoji for J-piece (more distinct)
+            },
+            {
+                shape: [
+                    [[0, 0, 1], [1, 1, 1], [0, 0, 0]], // L
+                    [[0, 1, 0], [0, 1, 0], [0, 1, 1]],
+                    [[0, 0, 0], [1, 1, 1], [1, 0, 0]],
+                    [[1, 1, 0], [0, 1, 0], [0, 1, 0]]
+                ],
+                color: 'color-L',
+                emoji: '😹' // Cat emoji for L-piece
+            },
+            {
+                shape: [
+                    [[0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]], // O
+                ],
+                color: 'color-O',
+                emoji: '😻' // Cat emoji for O-piece
+            },
+            {
+                shape: [
+                    [[0, 1, 1], [1, 1, 0], [0, 0, 0]], // S
+                    [[0, 1, 0], [0, 1, 1], [0, 0, 1]]
+                ],
+                color: 'color-S',
+                emoji: '😼' // Cat emoji for S-piece
+            },
+            {
+                shape: [
+                    [[0, 1, 0], [1, 1, 1], [0, 0, 0]], // T
+                    [[0, 1, 0], [0, 1, 1], [0, 1, 0]],
+                    [[0, 0, 0], [1, 1, 1], [0, 1, 0]],
+                    [[0, 1, 0], [1, 1, 0], [0, 1, 0]]
+                ],
+                color: 'color-T',
+                emoji: '😽' // Cat emoji for T-piece
+            },
+            {
+                shape: [
+                    [[1, 1, 0], [0, 1, 1], [0, 0, 0]], // Z
+                    [[0, 0, 1], [0, 1, 1], [0, 1, 0]]
+                ],
+                color: 'color-Z',
+                emoji: '😾' // Cat emoji for Z-piece
+            }
+        ];
+
+        // Piece class to manage current piece state
+        class Piece {
+            constructor(tetromino) {
+                this.shape = tetromino.shape[0];
+                this.color = tetromino.color;
+                this.emoji = tetromino.emoji; // Store the emoji for the piece
+                this.rotation = 0;
+                this.x = Math.floor(COLS / 2) - Math.floor(this.shape[0].length / 2); // Start in middle
+                this.y = 0; // Start at top
+            }
+
+            // Get the current shape based on rotation
+            get currentShape() {
+                return TETROMINOES.find(t => t.color === this.color).shape[this.rotation];
+            }
+
+            // Move the piece
+            move(dx, dy) {
+                this.x += dx;
+                this.y += dy;
+            }
+
+            // Rotate the piece
+            rotate() {
+                this.rotation = (this.rotation + 1) % TETROMINOES.find(t => t.color === this.color).shape.length;
+            }
+
+            // Undo move
+            undoMove(dx, dy) {
+                this.x -= dx;
+                this.y -= dy;
+            }
+
+            // Undo rotation
+            undoRotate() {
+                this.rotation = (this.rotation - 1 + TETROMINOES.find(t => t.color === this.color).shape.length) % TETROMINOES.find(t => t.color === this.color).shape.length;
+            }
+        }
+
+        // --- Game Initialization and Drawing ---
+
+        // Create the initial game board DOM elements
+        function createBoard() {
+            gameBoardElement.innerHTML = ''; // Clear existing board
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('grid-cell');
+                    gameBoardElement.appendChild(cell);
+                }
+            }
+        }
+
+        // Draw the game board based on the 'board' array
+        function drawBoard() {
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cellIndex = r * COLS + c;
+                    const cellElement = gameBoardElement.children[cellIndex];
+                    cellElement.className = 'grid-cell'; // Reset classes
+                    cellElement.textContent = ''; // Clear any existing emoji
+
+                    if (board[r][c] !== EMPTY_CELL_VALUE) {
+                        // If the cell is filled, add the 'filled' class and the specific color class
+                        const pieceData = TETROMINOES.find(t => t.emoji === board[r][c]);
+                        if (pieceData) {
+                            cellElement.classList.add('filled', pieceData.color);
+                            cellElement.textContent = board[r][c]; // Set the emoji
+                        }
+                    }
+                }
+            }
+        }
+
+        // Draw the current piece on the board
+        function drawPiece() {
+            if (!currentPiece) return;
+
+            const shape = currentPiece.currentShape;
+            for (let r = 0; r < shape.length; r++) {
+                for (let c = 0; c < shape[r].length; c++) {
+                    if (shape[r][c] === 1) {
+                        const boardX = currentPiece.x + c;
+                        const boardY = currentPiece.y + r;
+                        if (boardY >= 0 && boardY < ROWS && boardX >= 0 && boardX < COLS) {
+                            const cellIndex = boardY * COLS + boardX;
+                            const cellElement = gameBoardElement.children[cellIndex];
+                            cellElement.classList.add('filled', currentPiece.color);
+                            cellElement.textContent = currentPiece.emoji; // Set the emoji
+                        }
+                    }
+                }
+            }
+        }
+
+        // Draw the next piece in the sidebar
+        function drawNextPiece() {
+            nextPieceDisplay.innerHTML = ''; // Clear previous preview
+            if (!nextPiece) return;
+
+            const shape = nextPiece.currentShape;
+            // Create a 4x4 grid for preview
+            for (let r = 0; r < 4; r++) {
+                for (let c = 0; c < 4; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('grid-cell');
+                    if (r < shape.length && c < shape[r].length && shape[r][c] === 1) {
+                        cell.classList.add('filled', nextPiece.color);
+                        cell.textContent = nextPiece.emoji; // Set the emoji for preview
+                    }
+                    nextPieceDisplay.appendChild(cell);
+                }
+            }
+        }
+
+        // --- Game Logic ---
+
+        // Check for collision
+        function checkCollision(piece, dx = 0, dy = 0, newShape = null) {
+            const shapeToCheck = newShape || piece.currentShape;
+            for (let r = 0; r < shapeToCheck.length; r++) {
+                for (let c = 0; c < shapeToCheck[r].length; c++) {
+                    if (shapeToCheck[r][c] === 1) {
+                        const boardX = piece.x + c + dx;
+                        const boardY = piece.y + r + dy;
+
+                        // Check boundaries
+                        if (boardX < 0 || boardX >= COLS || boardY >= ROWS) {
+                            return true; // Collision with wall or bottom
+                        }
+                        // Check collision with existing blocks on the board (only if within bounds and not negative Y)
+                        if (boardY >= 0 && board[boardY][boardX] !== EMPTY_CELL_VALUE) {
+                            return true; // Collision with another block
+                        }
+                    }
+                }
+            }
+            return false; // No collision
+        }
+
+        // Lock the current piece into the board
+        function lockPiece() {
+            const shape = currentPiece.currentShape;
+            for (let r = 0; r < shape.length; r++) {
+                for (let c = 0; c < shape[r].length; c++) {
+                    if (shape[r][c] === 1) {
+                        const boardX = currentPiece.x + c;
+                        const boardY = currentPiece.y + r;
+                        if (boardY < 0) { // Piece locked above the board - Game Over
+                            return true;
+                        }
+                        board[boardY][boardX] = currentPiece.emoji; // Store emoji in board
+                    }
+                }
+            }
+            return false;
+        }
+
+        // Clear full lines
+        function clearLines() {
+            let linesCleared = 0;
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (board[r].every(cell => cell !== EMPTY_CELL_VALUE)) {
+                    // Line is full, remove it
+                    board.splice(r, 1);
+                    // Add a new empty row at the top
+                    board.unshift(Array(COLS).fill(EMPTY_CELL_VALUE));
+                    linesCleared++;
+                    r++; // Check the new row at the same index
+                }
+            }
+            if (linesCleared > 0) {
+                updateScore(linesCleared);
+            }
+        }
+
+        // Update score
+        function updateScore(linesCleared) {
+            const scorePoints = [0, 100, 300, 500, 800]; // Points for 0, 1, 2, 3, 4 lines
+            score += scorePoints[linesCleared] * level;
+            scoreDisplay.textContent = `Score: ${score}`;
+
+            // Increase level and speed
+            if (score >= level * 1000) { // Example: level up every 1000 points
+                level++;
+                dropInterval = Math.max(100, dropInterval * 0.9); // Speed up, but not faster than 100ms
+                clearInterval(gameInterval);
+                gameInterval = setInterval(gameLoop, dropInterval);
+            }
+        }
+
+        // Generate a random new piece
+        function generateNewPiece() {
+            const randomIndex = Math.floor(Math.random() * TETROMINOES.length);
+            return new Piece(TETROMINOES[randomIndex]);
+        }
+
+        // --- Game Loop ---
+
+        function gameLoop() {
+            if (gameOver) return;
+
+            // Move piece down
+            currentPiece.move(0, 1);
+
+            if (checkCollision(currentPiece)) {
+                currentPiece.undoMove(0, 1); // Undo the move
+                if (lockPiece()) { // If piece locks above board, it's game over
+                    endGame();
+                    return;
+                }
+                clearLines();
+                // After locking and clearing, immediately spawn the next piece
+                currentPiece = nextPiece;
+                nextPiece = generateNewPiece();
+                drawNextPiece();
+                if (checkCollision(currentPiece)) { // New piece spawns and immediately collides
+                    endGame();
+                }
+            }
+            drawBoard(); // Always redraw the board
+            drawPiece(); // Always draw the current piece
+        }
+
+        // --- Game Controls ---
+
+        function handleKeyPress(event) {
+            if (gameOver || !currentPiece) return;
+
+            let moved = false;
+            switch (event.key) {
+                case 'ArrowLeft':
+                    currentPiece.move(-1, 0);
+                    if (checkCollision(currentPiece)) {
+                        currentPiece.undoMove(-1, 0);
+                    } else {
+                        moved = true;
+                    }
+                    break;
+                case 'ArrowRight':
+                    currentPiece.move(1, 0);
+                    if (checkCollision(currentPiece)) {
+                        currentPiece.undoMove(1, 0);
+                    } else {
+                        moved = true;
+                    }
+                    break;
+                case 'ArrowDown':
+                    currentPiece.move(0, 1);
+                    if (checkCollision(currentPiece)) {
+                        currentPiece.undoMove(0, 1);
+                        if (lockPiece()) {
+                            endGame();
+                            return;
+                        }
+                        clearLines();
+                        currentPiece = nextPiece;
+                        nextPiece = generateNewPiece();
+                        drawNextPiece();
+                        if (checkCollision(currentPiece)) {
+                            endGame();
+                        }
+                        // Reset interval to immediately drop next piece
+                        clearInterval(gameInterval);
+                        gameInterval = setInterval(gameLoop, dropInterval);
+                    }
+                    moved = true; // Still mark as moved for the main redraw after the switch if no collision
+                    break;
+                case 'ArrowUp':
+                    currentPiece.rotate();
+                    if (checkCollision(currentPiece)) {
+                        currentPiece.undoRotate();
+                    } else {
+                        moved = true;
+                    }
+                    break;
+                case ' ': // Spacebar for hard drop
+                    while (!checkCollision(currentPiece, 0, 1)) {
+                        currentPiece.move(0, 1);
+                    }
+                    if (lockPiece()) { // Check if game over immediately after locking
+                        endGame();
+                        return; // Exit if game over
+                    }
+                    clearLines();
+                    currentPiece = nextPiece;
+                    nextPiece = generateNewPiece();
+                    drawNextPiece();
+                    if (checkCollision(currentPiece)) { // Check collision for new piece spawn
+                        endGame();
+                    }
+                    // Reset interval to immediately drop next piece
+                    clearInterval(gameInterval);
+                    gameInterval = setInterval(gameLoop, dropInterval);
+
+                    moved = true; // Ensure redraw happens at the end of handleKeyPress
+                    break;
+            }
+
+            if (moved) { // This block now handles all movements and rotations
+                drawBoard();
+                drawPiece();
+            }
+        }
+
+        // --- Game State Management ---
+
+        function startGame() {
+            if (gameInterval) clearInterval(gameInterval); // Clear any existing interval
+            board = Array.from({ length: ROWS }, () => Array(COLS).fill(EMPTY_CELL_VALUE));
+            score = 0;
+            level = 1;
+            dropInterval = 1000;
+            gameOver = false;
+            scoreDisplay.textContent = `Score: ${score}`;
+            gameOverDisplay.style.display = 'none';
+            startButton.textContent = 'Restart Game';
+
+            currentPiece = generateNewPiece();
+            nextPiece = generateNewPiece();
+            drawNextPiece();
+            createBoard(); // Re-create board elements
+            drawBoard();
+            drawPiece();
+
+            gameInterval = setInterval(gameLoop, dropInterval);
+            document.addEventListener('keydown', handleKeyPress);
+        }
+
+        function endGame() {
+            gameOver = true;
+            clearInterval(gameInterval);
+            gameOverDisplay.style.display = 'block';
+            document.removeEventListener('keydown', handleKeyPress);
+            startButton.textContent = 'Play Again';
+        }
+
+        // Event Listeners
+        startButton.addEventListener('click', startGame);
+
+        // Initial setup on page load
+        window.onload = function() {
+            createBoard(); // Create board cells initially
+            drawBoard(); // Draw empty board
+            drawNextPiece(); // Draw empty next piece display
+        };
+
+    </script>
+</body>
+</html>
