@@ -164,6 +164,33 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
+        /* Style for smaller touch control buttons */
+        .touch-control-button {
+            width: 40px; /* Fixed width */
+            height: 40px; /* Fixed height */
+            padding: 0; /* Remove padding as size is fixed */
+            font-size: 18px; /* Adjust font size for centering */
+            border-radius: 5px;
+            background: linear-gradient(145deg, #66bb6a, #43a047);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex; /* Use flexbox for centering content */
+            justify-content: center; /* Center horizontally */
+            align-items: center; /* Center vertically */
+            line-height: 1; /* Ensure content is vertically centered */
+        }
+
+        .touch-control-button:hover {
+            background: linear-gradient(145deg, #43a047, #388e3c);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.15);
+        }
+
+        .touch-control-button:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+        }
+
+
         #game-over-display {
             background-color: #ff4d4d;
             color: white;
@@ -211,26 +238,24 @@
     </style>
 </head>
 <body>
-    <h1>Catris: The Purr-fect Tetris Game</h1>
-    <div id="game-container">
-        <div id="game-board"></div>
-        <div id="sidebar">
-            <div id="score-display">Score: 0</div>
-            <div id="next-piece-display">
+<h1 style="text-align: center; font-size: 24px;">Catris<br/><span style="font-size: 14px;">The Purr-fect Tetris Game</span></h1>
+<div id="game-container">
+<div id="game-board"></div>
+<div id="sidebar">
+<div id="score-display">Score: 0</div>
+<div id="next-piece-display">
                 Next:
                 <div id="next-piece-preview-grid"></div>
-            </div>
-            <div id="game-over-display">Game Over!</div>
-            <!-- Moved controls inside sidebar -->
-            <div id="controls">
-                <button id="startButton" class="control-button">Start Game</button>
+</div>
+<div id="game-over-display">Game Over!</div>
+<!-- Moved controls inside sidebar -->
+<div id="controls">
+<button class="control-button" id="startButton">Start Game</button><div id="touch-controls" style="margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 5px;"><div style="display: flex; gap: 10px;"><button class="control-button touch-control-button" id="leftButton">←</button><button class="control-button touch-control-button" id="rightButton">→</button></div><div style="display: flex; gap: 10px;"><button class="control-button touch-control-button" id="rotateButton">⟳</button><button class="control-button touch-control-button" id="downButton">↓</button></div></div>
 
-                <p class="key-instruction">Up Arrow: Rotate <BR>Down Arrow: Soft Drop<BR>Spacebar: Hard Drop</p>
-            </div>
-        </div>
-    </div>
-
-    <script>
+</div>
+</div>
+</div>
+<script>
         const COLS = 10;
         const ROWS = 20;
         const CELL_SIZE = 20; // in pixels
@@ -666,5 +691,39 @@
         };
 
     </script>
-</body>
+<script>
+// Event listeners for touch controls
+document.getElementById('leftButton').addEventListener('click', () => {
+  if (currentPiece && !gameOver) {
+    currentPiece.move(-1, 0);
+    if (checkCollision(currentPiece)) currentPiece.undoMove(-1, 0);
+    drawBoard();
+    drawPiece();
+  }
+});
+document.getElementById('rightButton').addEventListener('click', () => {
+  if (currentPiece && !gameOver) {
+    currentPiece.move(1, 0);
+    if (checkCollision(currentPiece)) currentPiece.undoMove(1, 0);
+    drawBoard();
+    drawPiece();
+  }
+});
+document.getElementById('rotateButton').addEventListener('click', () => {
+  if (currentPiece && !gameOver) {
+    currentPiece.rotate();
+    if (checkCollision(currentPiece)) currentPiece.undoRotate();
+    drawBoard();
+    drawPiece();
+  }
+});
+document.getElementById('downButton').addEventListener('click', () => {
+  if (currentPiece && !gameOver) {
+    currentPiece.move(0, 1);
+    if (checkCollision(currentPiece)) currentPiece.undoMove(0, 1);
+    drawBoard();
+    drawPiece();
+  }
+});
+</script></body>
 </html>
