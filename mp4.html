@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mandy's Pawsome 4</title>
-    <style>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Mandy's Pawsome 4</title>
+<style>
         :root {
             /* Define a responsive cell size. It uses viewport units (vw, vh) for scaling,
                and is capped at 40px to prevent it from becoming too large on very big screens,
@@ -205,23 +206,22 @@
     </style>
 </head>
 <body>
-    <div id="game-wrapper">
-        <h2>Mandy's Pawsome 4</h2>
-        Beat Mandy in putting your paws in a row of 4!
+<div id="game-wrapper">
+<h2>Mandy's Pawsome 4</h2>
+		Beat Mandy in putting in paws in a row of 4
         <div id="turn-display"></div> <!-- Turn display at the top -->
-        <div id="game-board">
-            <!-- Overlays for Start Game and Game Over -->
-            <div id="start-game-overlay">
-                <button id="start-button-overlay">Start Game</button>
-            </div>
-            <div id="game-over-overlay">
-                <div id="game-over-text">Game Over!</div>
-                <button id="restart-button-overlay">Play Again</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
+<div id="game-board">
+<!-- Overlays for Start Game and Game Over -->
+<div id="start-game-overlay">
+<button id="start-button-overlay">Start Game</button>
+</div>
+<div id="game-over-overlay">
+<div id="game-over-text">Game Over!</div>
+<button id="restart-button-overlay">Play Again</button>
+</div>
+</div>
+</div>
+<script>
         // Game board dimensions for Paw-some Four
         const ROWS = 6;
         const COLS = 6;
@@ -371,7 +371,65 @@
 
             if (emptyCells.length > 0) {
                 // Simple AI: choose a random empty cell
-                const randomIndex = Math.floor(Math.random() * emptyCells.length);
+                
+function getBestMove(board, player) {
+    const opponent = player === PLAYERS.COMPUTER ? PLAYERS.HUMAN : PLAYERS.COMPUTER;
+    const directions = [
+        { dr: 0, dc: 1 },  // horizontal
+        { dr: 1, dc: 0 },  // vertical
+        { dr: 1, dc: 1 },  // diagonal down-right
+        { dr: 1, dc: -1 }  // diagonal down-left
+    ];
+
+    function countInDirection(r, c, dr, dc, target) {
+        let count = 0;
+        for (let i = 1; i < 4; i++) {
+            const nr = r + dr * i;
+            const nc = c + dc * i;
+            if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && board[nr][nc] === target) {
+                count++;
+            } else {
+                break;
+            }
+        }
+        return count;
+    }
+
+    function evaluateCell(r, c) {
+        if (board[r][c] !== "") return -1;
+        let score = 0;
+        for (const { dr, dc } of directions) {
+            const compCount = countInDirection(r, c, dr, dc, player) + countInDirection(r, c, -dr, -dc, player);
+            const humanCount = countInDirection(r, c, dr, dc, opponent) + countInDirection(r, c, -dr, -dc, opponent);
+            if (compCount >= 3) return 1000;  // winning move
+            if (humanCount >= 3) return 900;  // block opponent
+            score += compCount * 10 + humanCount * 5;
+        }
+        // Prefer center columns
+        score += (COLS / 2 - Math.abs(c - COLS / 2)) * 2;
+        return score;
+    }
+
+    let bestScore = -1;
+    let bestMove = null;
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            const score = evaluateCell(r, c);
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = { row: r, col: c };
+            }
+        }
+    }
+    return bestMove;
+}
+
+// Replace the random move logic
+const move = getBestMove(board, PLAYERS.COMPUTER);
+if (move) {
+    makeMove(move.row, move.col, PLAYERS.COMPUTER);
+}
+
                 const { row, col } = emptyCells[randomIndex];
                 makeMove(row, col, PLAYERS.COMPUTER);
             }
